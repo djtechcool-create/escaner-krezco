@@ -18,6 +18,7 @@ let drawing = false;
 let drawStart = null;
 let deferredInstallPrompt;
 let zxingReader;
+let ocrWorkerPromise;
 const detectedCodes = new Set();
 const formats = ['code_128', 'code_39', 'code_93', 'codabar', 'ean_13', 'ean_8', 'itf', 'upc_a', 'upc_e', 'qr_code', 'data_matrix', 'aztec', 'pdf417'];
 
@@ -185,6 +186,69 @@ function canvasToImage(source) {
   });
 }
 
+function isValidAccessKey(value) {
+  if (!/^\d{49}$/.test(value)) return false;
+  let factor = 2;
+  let total = 0;
+  for (let index = 47; index >= 0; index -= 1) {
+    total += Number(value[index]) * factor;
+    factor = factor === 7 ? 2 : factor + 1;
+  }
+  let verifier = 11 - (total % 11);
+  if (verifier === 11) verifier = 0;
+  if (verifier === 10) verifier = 1;
+  return verifier === Number(value[48]);
+}
+
+function captionCanvas() {
+  if (!selection || !imageBitmap) return null;
+  const sourceWidth = refs.imageCanvas.width;
+  const sourceHeight = refs.imageCanvas.height;
+  const margin = Math.max(8, Math.round(selection.width * 0.035));
+  const x = Math.max(0, Math.round(selection.x - margin));
+  // Empieza en la parte baja de las barras y conserva el texto impreso debajo.
+  const y = Math.max(0, Math.round(selection.y + selection.height * 0.55));
+  const width = Math.min(sourceWidth - x, Math.round(selection.width + margin * 2));
+  const height = Math.min(sourceHeight - y, Math.max(42, Math.round(selection.height * 1.35)));
+  const canvas = document.createElement('canvas');
+  canvas.width = width * 4;
+  canvas.height = height * 4;
+  const context = canvas.getContext('2d');
+  context.imageSmoothingEnabled = false;
+  context.drawImage(imageBitmap, x, y, width, height, 0, 0, canvas.width, canvas.height);
+  const data = context.getImageData(0, 0, canvas.width, canvas.height);
+  for (let index = 0; index < data.data.length; index += 4) {
+    const gray = data.data[index] * 0.299 + data.data[index + 1] * 0.587 + data.data[index + 2] * 0.114;
+    const pixel = gray < 168 ? 0 : 255;
+    data.data[index] = pixel;
+    data.data[index + 1] = pixel;
+    data.data[index + 2] = pixel;
+  }
+  context.putImageData(data, 0, 0);
+  return canvas;
+}
+
+async function accessKeyFromCaption() {
+  if (!window.Tesseract?.createWorker) return [];
+  const source = captionCanvas();
+  if (!source) return [];
+  try {
+    ocrWorkerPromise ||= (async () => {
+      const worker = await Tesseract.createWorker('eng', 1, { logger: () => {} });
+      await worker.setParameters({ tessedit_char_whitelist: '0123456789', tessedit_pageseg_mode: '7' });
+      return worker;
+    })();
+    const worker = await ocrWorkerPromise;
+    const { data } = await worker.recognize(source);
+    const digits = (data.text || '').replace(/\D/g, '');
+    return isValidAccessKey(digits) ? [digits] : [];
+  } catch (error) {
+    console.warn('OCR de clave de acceso no disponible', error);
+    ocrWorkerPromise = null;
+    return [];
+  }
+}
+
 async function startCamera() {
   if (!navigator.mediaDevices?.getUserMedia) { tell('Este navegador no permite usar la cámara. Prueba con Chrome o Edge actualizado.'); return; }
   stopCamera();
@@ -289,7 +353,11 @@ async function scanImage(useSelection) {
     source = crop;
   }
   refs.imageStatus.textContent = 'Analizando…';
-  const codes = await scanSource(source);
+  let codes = await scanSource(source);
+  if (!codes.length && useSelection && selection) {
+    refs.imageStatus.textContent = 'Leyendo los dígitos impresos como respaldo…';
+    codes = await accessKeyFromCaption();
+  }
   if (codes.length) {
     codes.forEach(code => addResult(code, useSelection && selection ? 'Selección de imagen' : 'Imagen'));
     refs.imageStatus.textContent = 'Lectura terminada.';
