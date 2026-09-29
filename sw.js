@@ -1,5 +1,5 @@
-const CACHE = 'escaner-krezco-v4';
-const APP_FILES = ['./', './index.html', './styles.css', './app.js', './manifest.webmanifest', './icons/icon.svg', './vendor/quagga.min.js'];
+const CACHE = 'escaner-krezco-v5';
+const APP_FILES = ['./', './index.html', './styles.css', './app.js', './manifest.webmanifest', './icons/icon.svg', './vendor/quagga.min.js', './vendor/zxing-browser.min.js'];
 
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(APP_FILES)).then(() => self.skipWaiting())));
 self.addEventListener('activate', event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())));
