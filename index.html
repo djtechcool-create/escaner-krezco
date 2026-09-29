@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b4f6c" />
+    <meta name="description" content="Escáner de códigos de barras instalable para móvil y PC." />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icons/icon.svg" />
+    <link rel="stylesheet" href="./styles.css" />
+    <title>Escáner Krezco</title>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="app-header">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">▥</span>
+          <div>
+            <h1>Escáner</h1>
+            <p>Lectura rápida de códigos</p>
+          </div>
+        </div>
+        <button id="installButton" class="button secondary hidden" type="button">Instalar app</button>
+      </header>
+
+      <section class="intro-card">
+        <h2>¿Cómo quieres escanear?</h2>
+        <p>Usa la cámara desde el móvil o selecciona una imagen desde tu PC.</p>
+        <div class="action-grid">
+          <button id="startCameraButton" class="button primary action-button" type="button">
+            <span aria-hidden="true">◉</span> Usar cámara
+          </button>
+          <label class="button secondary action-button upload-label" for="fileInput">
+            <span aria-hidden="true">▧</span> Subir imagen
+          </label>
+          <input id="fileInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" hidden />
+        </div>
+      </section>
+
+      <section id="cameraPanel" class="scanner-panel hidden" aria-labelledby="cameraTitle">
+        <div class="panel-heading">
+          <div>
+            <h2 id="cameraTitle">Escaneo con cámara</h2>
+            <p id="cameraStatus">Preparando cámara…</p>
+          </div>
+          <button id="stopCameraButton" class="icon-button" type="button" aria-label="Cerrar cámara">×</button>
+        </div>
+        <div class="camera-frame">
+          <video id="cameraVideo" autoplay playsinline muted></video>
+          <div class="scan-guide" aria-hidden="true"><span></span></div>
+        </div>
+      </section>
+
+      <section id="imagePanel" class="scanner-panel hidden" aria-labelledby="imageTitle">
+        <div class="panel-heading">
+          <div>
+            <h2 id="imageTitle">Selecciona la zona del código</h2>
+            <p id="imageStatus">Arrastra sobre la imagen para marcar la zona a analizar.</p>
+          </div>
+          <button id="scanSelectionButton" class="button primary compact" type="button">Leer selección</button>
+        </div>
+        <div class="canvas-scroll">
+          <canvas id="imageCanvas" aria-label="Imagen para seleccionar el área de escaneo"></canvas>
+        </div>
+        <div class="image-actions">
+          <button id="scanFullImageButton" class="text-button" type="button">Analizar imagen completa</button>
+          <button id="clearSelectionButton" class="text-button" type="button">Quitar selección</button>
+        </div>
+      </section>
+
+      <section class="results-panel" aria-labelledby="resultsTitle">
+        <div class="panel-heading">
+          <div>
+            <h2 id="resultsTitle">Resultados</h2>
+            <p><span id="resultCount">0</span> códigos registrados</p>
+          </div>
+          <button id="clearResultsButton" class="text-button danger" type="button">Limpiar</button>
+        </div>
+        <div id="emptyResults" class="empty-state">Aún no hay códigos. El primer resultado aparecerá aquí.</div>
+        <ul id="resultsList" class="results-list" aria-live="polite"></ul>
+        <div class="result-actions">
+          <button id="copyAllButton" class="button secondary" type="button" disabled>Copiar resultados</button>
+          <button id="shareButton" class="button whatsapp" type="button" disabled>Compartir por WhatsApp</button>
+        </div>
+      </section>
+
+      <p id="appMessage" class="app-message" role="status" aria-live="polite"></p>
+    </main>
+
+    <template id="resultTemplate">
+      <li class="result-item">
+        <div>
+          <strong class="result-code"></strong>
+          <span class="result-meta"></span>
+        </div>
+        <button class="copy-one-button" type="button">Copiar</button>
+      </li>
+    </template>
+
+    <script src="https://unpkg.com/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
+
