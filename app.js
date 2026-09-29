@@ -19,6 +19,7 @@ let drawStart = null;
 let deferredInstallPrompt;
 let zxingReader;
 let ocrWorkerPromise;
+let lastOcrDigits = '';
 const detectedCodes = new Set();
 const formats = ['code_128', 'code_39', 'code_93', 'codabar', 'ean_13', 'ean_8', 'itf', 'upc_a', 'upc_e', 'qr_code', 'data_matrix', 'aztec', 'pdf417'];
 
@@ -257,6 +258,10 @@ async function accessKeyFromCaption() {
     const worker = await ocrWorkerPromise;
     const { data } = await worker.recognize(source);
     const digits = (data.text || '').replace(/\D/g, '');
+    // Diagnóstico temporal: la interfaz muestra qué devolvió OCR antes de
+    // validar el dígito verificador; así se puede ajustar sin aceptar datos
+    // incorrectos silenciosamente.
+    lastOcrDigits = digits;
     return isValidAccessKey(digits) ? [digits] : [];
   } catch (error) {
     console.warn('OCR de clave de acceso no disponible', error);
@@ -378,7 +383,7 @@ async function scanImage(useSelection) {
     codes.forEach(code => addResult(code, useSelection && selection ? 'Selección de imagen' : 'Imagen'));
     refs.imageStatus.textContent = 'Lectura terminada.';
   } else {
-    refs.imageStatus.textContent = 'No se encontró un código en esta zona.';
+    refs.imageStatus.textContent = lastOcrDigits ? `OCR obtuvo: ${lastOcrDigits}` : 'No se encontró un código en esta zona.';
     tell('No detecté un código. Prueba con una imagen más nítida o marca una zona más ajustada.');
   }
 }
