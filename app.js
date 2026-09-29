@@ -220,9 +220,12 @@ function captionCanvas() {
   const x = Math.max(0, Math.round(selection.x - margin));
   // Se toma solo la línea numérica debajo de las barras: leer barras y texto
   // a la vez hace que el OCR interprete patrones verticales como caracteres.
-  const y = Math.max(0, Math.round(selection.y + selection.height * 0.88));
+  // La línea numérica comienza justo bajo las barras. Mantener un pequeño
+  // borde superior evita cortar la parte alta de los dígitos al seleccionar
+  // el bloque completo con el ratón o con el dedo.
+  const y = Math.max(0, Math.round(selection.y + selection.height * 0.68));
   const width = Math.min(sourceWidth - x, Math.round(selection.width + margin * 2));
-  const height = Math.min(sourceHeight - y, Math.max(34, Math.round(selection.height * 0.9)));
+  const height = Math.min(sourceHeight - y, Math.max(42, Math.round(selection.height * 0.5)));
   const canvas = document.createElement('canvas');
   canvas.width = width * 6;
   canvas.height = height * 6;
@@ -407,3 +410,4 @@ window.addEventListener('appinstalled', () => { refs.install.classList.add('hidd
 
 if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
 updateResults();
+
