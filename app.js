@@ -70,16 +70,19 @@ async function scanSource(source) {
   if (detector) {
     try {
       const found = await detector.detect(source);
-      if (found.length) return found.map(item => item.rawValue).filter(Boolean);
+      const accepted = acceptedCodes(found.map(item => item.rawValue));
+      if (accepted.length) return accepted;
     } catch (error) { console.warn('BarcodeDetector no pudo procesar la imagen', error); }
   }
+  const zxingCodes = acceptedCodes(await scanWithZXing(source, !(source instanceof HTMLVideoElement)));
+  if (zxingCodes.length) return zxingCodes;
   // Quagga está especializado en códigos lineales (como Code 128), por lo que
   // suele resolver guías fotografiadas con sombras mejor que un lector genérico.
   if (!(source instanceof HTMLVideoElement)) {
-    const quaggaCodes = await scanWithQuagga(source);
+    const quaggaCodes = acceptedCodes(await scanWithQuagga(source));
     if (quaggaCodes.length) return quaggaCodes;
   }
-  return scanWithZXing(source, !(source instanceof HTMLVideoElement));
+  return [];
 }
 
 function createCanvasFromSource(source) {
@@ -150,7 +153,7 @@ function decodeQuaggaImage(src, locate) {
         locate,
         inputStream: { size: 0 },
         locator: { halfSample: false, patchSize: 'medium' },
-        decoder: { readers: ['code_128_reader', 'ean_reader', 'ean_8_reader', 'code_39_reader', 'codabar_reader', 'i2of5_reader', 'code_93_reader'] }
+        decoder: { readers: ['code_128_reader'] }
       }, (result) => resolve(result?.codeResult?.code ? [result.codeResult.code] : []));
     } catch { resolve([]); }
   });
@@ -198,6 +201,15 @@ function isValidAccessKey(value) {
   if (verifier === 11) verifier = 0;
   if (verifier === 10) verifier = 1;
   return verifier === Number(value[48]);
+}
+
+function acceptedCodes(values) {
+  return values.map(value => String(value || '').trim()).filter((value) => {
+    // Una cadena numérica extensa corresponde a la clave de acceso de Ecuador.
+    // Solo se acepta cuando sus 49 dígitos superan el dígito verificador.
+    if (/^\d{20,}$/.test(value)) return isValidAccessKey(value);
+    return Boolean(value);
+  });
 }
 
 function captionCanvas() {
