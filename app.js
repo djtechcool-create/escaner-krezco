@@ -162,14 +162,32 @@ function decodeQuaggaImage(src, locate) {
 
 async function scanWithQuagga(source) {
   if (!window.Quagga?.decodeSingle) return [];
+  const strips = [source];
+  // Al seleccionar la guía completa, el título y los dígitos de debajo
+  // añaden trazos verticales. Se prueba además la franja central que contiene
+  // solamente las barras, manteniendo sus zonas blancas laterales.
+  const original = createCanvasFromSource(source);
+  if (original.width > 80 && original.height > 40) {
+    const strip = document.createElement('canvas');
+    const x = Math.round(original.width * 0.035);
+    const y = Math.round(original.height * 0.20);
+    const width = Math.round(original.width * 0.93);
+    const height = Math.round(original.height * 0.52);
+    strip.width = width;
+    strip.height = height;
+    strip.getContext('2d').drawImage(original, x, y, width, height, 0, 0, width, height);
+    strips.push(strip);
+  }
   // Primero intenta ubicar el código dentro del recorte; si el usuario ya
   // marcó solo las barras, el segundo intento lo decodifica directamente.
-  for (const variant of buildScanVariants(source, true)) {
-    const image = variant.toDataURL('image/jpeg', 0.98);
-    const located = await decodeQuaggaImage(image, true);
-    if (located.length) return located;
-    const direct = await decodeQuaggaImage(image, false);
-    if (direct.length) return direct;
+  for (const candidate of strips) {
+    for (const variant of buildScanVariants(candidate, true)) {
+      const image = variant.toDataURL('image/jpeg', 0.98);
+      const located = await decodeQuaggaImage(image, true);
+      if (located.length) return located;
+      const direct = await decodeQuaggaImage(image, false);
+      if (direct.length) return direct;
+    }
   }
   return [];
 }
