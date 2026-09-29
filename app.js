@@ -231,7 +231,7 @@ function acceptedCodes(values) {
   });
 }
 
-function captionCanvas(binarize = true) {
+function captionCanvas(binarize = true, topRatio = 0.58, heightRatio = 0.42) {
   if (!selection || !imageBitmap) return null;
   const sourceWidth = refs.imageCanvas.width;
   const sourceHeight = refs.imageCanvas.height;
@@ -242,9 +242,9 @@ function captionCanvas(binarize = true) {
   // La línea numérica comienza justo bajo las barras. Mantener un pequeño
   // borde superior evita cortar la parte alta de los dígitos al seleccionar
   // el bloque completo con el ratón o con el dedo.
-  const y = Math.max(0, Math.round(selection.y + selection.height * 0.68));
+  const y = Math.max(0, Math.round(selection.y + selection.height * topRatio));
   const width = Math.min(sourceWidth - x, Math.round(selection.width + margin * 2));
-  const height = Math.min(sourceHeight - y, Math.max(42, Math.round(selection.height * 0.5)));
+  const height = Math.min(sourceHeight - y, Math.max(42, Math.round(selection.height * heightRatio)));
   const canvas = document.createElement('canvas');
   canvas.width = width * 6;
   canvas.height = height * 6;
@@ -285,22 +285,31 @@ async function accessKeyFromCaption() {
   const nativeCode = await accessKeyFromBrowserText();
   if (nativeCode.length) return nativeCode;
   if (!window.Tesseract?.createWorker) return [];
-  const source = captionCanvas();
-  if (!source) return [];
+  const sources = [
+    captionCanvas(false, 0.58, 0.42),
+    captionCanvas(true, 0.58, 0.42),
+    captionCanvas(true, 0.66, 0.30)
+  ].filter(Boolean);
+  if (!sources.length) return [];
   try {
     ocrWorkerPromise ||= (async () => {
       const worker = await Tesseract.createWorker('eng', 1, { logger: () => {} });
-      await worker.setParameters({ tessedit_char_whitelist: '0123456789', tessedit_pageseg_mode: '7' });
+    await worker.setParameters({ tessedit_char_whitelist: '0123456789', tessedit_pageseg_mode: '7' });
       return worker;
     })();
     const worker = await ocrWorkerPromise;
-    const { data } = await worker.recognize(source);
-    const digits = (data.text || '').replace(/\D/g, '');
-    // Diagnóstico temporal: la interfaz muestra qué devolvió OCR antes de
-    // validar el dígito verificador; así se puede ajustar sin aceptar datos
-    // incorrectos silenciosamente.
-    lastOcrDigits = digits;
-    return isValidAccessKey(digits) ? [digits] : [];
+    const attempts = [];
+    for (const source of sources) {
+      for (const mode of ['7', '13']) {
+        await worker.setParameters({ tessedit_char_whitelist: '0123456789', tessedit_pageseg_mode: mode });
+        const { data } = await worker.recognize(source);
+        const digits = (data.text || '').replace(/\D/g, '');
+        attempts.push(digits);
+        if (isValidAccessKey(digits)) return [digits];
+      }
+    }
+    lastOcrDigits = attempts.filter(Boolean).join(' / ') || 'sin dígitos';
+    return [];
   } catch (error) {
     console.warn('OCR de clave de acceso no disponible', error);
     lastOcrDigits = `error de OCR: ${error?.message || 'desconocido'}`;
