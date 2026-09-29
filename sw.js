@@ -1,4 +1,4 @@
-const CACHE = 'escaner-krezco-v2';
+const CACHE = 'escaner-krezco-v3';
 const APP_FILES = ['./', './index.html', './styles.css', './app.js', './manifest.webmanifest', './icons/icon.svg'];
 
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(APP_FILES)).then(() => self.skipWaiting())));
