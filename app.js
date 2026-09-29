@@ -72,6 +72,12 @@ async function scanSource(source) {
       if (found.length) return found.map(item => item.rawValue).filter(Boolean);
     } catch (error) { console.warn('BarcodeDetector no pudo procesar la imagen', error); }
   }
+  // Quagga está especializado en códigos lineales (como Code 128), por lo que
+  // suele resolver guías fotografiadas con sombras mejor que un lector genérico.
+  if (!(source instanceof HTMLVideoElement)) {
+    const quaggaCodes = await scanWithQuagga(source);
+    if (quaggaCodes.length) return quaggaCodes;
+  }
   return scanWithZXing(source, !(source instanceof HTMLVideoElement));
 }
 
@@ -130,6 +136,35 @@ async function scanWithZXing(source, includeEnhancements) {
       const result = await zxingReader.decodeFromImageElement(await canvasToImage(variant));
       if (result?.getText?.()) return [result.getText()];
     } catch { /* El siguiente tratamiento de imagen puede reconocerlo. */ }
+  }
+  return [];
+}
+
+function decodeQuaggaImage(src, locate) {
+  return new Promise((resolve) => {
+    try {
+      window.Quagga.decodeSingle({
+        src,
+        numOfWorkers: 0,
+        locate,
+        inputStream: { size: 0 },
+        locator: { halfSample: false, patchSize: 'medium' },
+        decoder: { readers: ['code_128_reader', 'ean_reader', 'ean_8_reader', 'code_39_reader', 'codabar_reader', 'i2of5_reader', 'code_93_reader'] }
+      }, (result) => resolve(result?.codeResult?.code ? [result.codeResult.code] : []));
+    } catch { resolve([]); }
+  });
+}
+
+async function scanWithQuagga(source) {
+  if (!window.Quagga?.decodeSingle) return [];
+  // Primero intenta ubicar el código dentro del recorte; si el usuario ya
+  // marcó solo las barras, el segundo intento lo decodifica directamente.
+  for (const variant of buildScanVariants(source, true)) {
+    const image = variant.toDataURL('image/jpeg', 0.98);
+    const located = await decodeQuaggaImage(image, true);
+    if (located.length) return located;
+    const direct = await decodeQuaggaImage(image, false);
+    if (direct.length) return direct;
   }
   return [];
 }
