@@ -283,6 +283,7 @@ async function accessKeyFromCaption() {
     return isValidAccessKey(digits) ? [digits] : [];
   } catch (error) {
     console.warn('OCR de clave de acceso no disponible', error);
+    lastOcrDigits = `error de OCR: ${error?.message || 'desconocido'}`;
     ocrWorkerPromise = null;
     return [];
   }
