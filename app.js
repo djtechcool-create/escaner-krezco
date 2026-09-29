@@ -231,7 +231,7 @@ function acceptedCodes(values) {
   });
 }
 
-function captionCanvas() {
+function captionCanvas(binarize = true) {
   if (!selection || !imageBitmap) return null;
   const sourceWidth = refs.imageCanvas.width;
   const sourceHeight = refs.imageCanvas.height;
@@ -251,19 +251,39 @@ function captionCanvas() {
   const context = canvas.getContext('2d');
   context.imageSmoothingEnabled = false;
   context.drawImage(imageBitmap, x, y, width, height, 0, 0, canvas.width, canvas.height);
-  const data = context.getImageData(0, 0, canvas.width, canvas.height);
-  for (let index = 0; index < data.data.length; index += 4) {
-    const gray = data.data[index] * 0.299 + data.data[index + 1] * 0.587 + data.data[index + 2] * 0.114;
-    const pixel = gray < 205 ? 0 : 255;
-    data.data[index] = pixel;
-    data.data[index + 1] = pixel;
-    data.data[index + 2] = pixel;
+  if (binarize) {
+    const data = context.getImageData(0, 0, canvas.width, canvas.height);
+    for (let index = 0; index < data.data.length; index += 4) {
+      const gray = data.data[index] * 0.299 + data.data[index + 1] * 0.587 + data.data[index + 2] * 0.114;
+      const pixel = gray < 205 ? 0 : 255;
+      data.data[index] = pixel;
+      data.data[index + 1] = pixel;
+      data.data[index + 2] = pixel;
+    }
+    context.putImageData(data, 0, 0);
   }
-  context.putImageData(data, 0, 0);
   return canvas;
 }
 
+async function accessKeyFromBrowserText() {
+  if (!('TextDetector' in window)) return [];
+  try {
+    // Chrome puede usar su reconocimiento de texto nativo: es el enfoque más
+    // parecido a Lens y funciona especialmente bien con la clave impresa.
+    const detector = new TextDetector();
+    const blocks = await detector.detect(captionCanvas(false));
+    const digits = blocks.map(block => block.rawValue).join('').replace(/\D/g, '');
+    lastOcrDigits = digits;
+    return isValidAccessKey(digits) ? [digits] : [];
+  } catch (error) {
+    console.warn('OCR nativo no disponible', error);
+    return [];
+  }
+}
+
 async function accessKeyFromCaption() {
+  const nativeCode = await accessKeyFromBrowserText();
+  if (nativeCode.length) return nativeCode;
   if (!window.Tesseract?.createWorker) return [];
   const source = captionCanvas();
   if (!source) return [];
