@@ -218,20 +218,21 @@ function captionCanvas() {
   const sourceHeight = refs.imageCanvas.height;
   const margin = Math.max(8, Math.round(selection.width * 0.035));
   const x = Math.max(0, Math.round(selection.x - margin));
-  // Empieza en la parte baja de las barras y conserva el texto impreso debajo.
-  const y = Math.max(0, Math.round(selection.y + selection.height * 0.55));
+  // Se toma solo la línea numérica debajo de las barras: leer barras y texto
+  // a la vez hace que el OCR interprete patrones verticales como caracteres.
+  const y = Math.max(0, Math.round(selection.y + selection.height * 0.88));
   const width = Math.min(sourceWidth - x, Math.round(selection.width + margin * 2));
-  const height = Math.min(sourceHeight - y, Math.max(42, Math.round(selection.height * 1.35)));
+  const height = Math.min(sourceHeight - y, Math.max(34, Math.round(selection.height * 0.9)));
   const canvas = document.createElement('canvas');
-  canvas.width = width * 4;
-  canvas.height = height * 4;
+  canvas.width = width * 6;
+  canvas.height = height * 6;
   const context = canvas.getContext('2d');
   context.imageSmoothingEnabled = false;
   context.drawImage(imageBitmap, x, y, width, height, 0, 0, canvas.width, canvas.height);
   const data = context.getImageData(0, 0, canvas.width, canvas.height);
   for (let index = 0; index < data.data.length; index += 4) {
     const gray = data.data[index] * 0.299 + data.data[index + 1] * 0.587 + data.data[index + 2] * 0.114;
-    const pixel = gray < 168 ? 0 : 255;
+    const pixel = gray < 205 ? 0 : 255;
     data.data[index] = pixel;
     data.data[index + 1] = pixel;
     data.data[index + 2] = pixel;
@@ -406,4 +407,3 @@ window.addEventListener('appinstalled', () => { refs.install.classList.add('hidd
 
 if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
 updateResults();
-
