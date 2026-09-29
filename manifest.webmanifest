@@ -1,0 +1,15 @@
+{
+  "name": "Escáner Krezco",
+  "short_name": "Escáner",
+  "description": "Escáner instalable de códigos de barras para móvil y PC.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f3f7f8",
+  "theme_color": "#0b4f6c",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "./icons/icon.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any maskable" },
+    { "src": "./icons/icon.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
+
